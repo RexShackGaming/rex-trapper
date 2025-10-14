@@ -1507,6 +1507,7 @@ Config.Animal = {
     { -- Quail : a_c_quail_01
         modelhash   = 2105463796,
         name        = 'Quail',
+        rewarditem1 = nil,
         rewarditem2 = nil,
         rewarditem3 = nil,
         rewarditem4 = nil,
@@ -1712,3 +1713,45 @@ Config.Animal = {
     },
 
 }
+
+-------------------------------------
+-- Performance optimizations
+-------------------------------------
+-- These lookup tables are generated for better performance
+-- and should be used instead of iterating through arrays
+
+-- Generate pelthash lookup table for O(1) access
+Config.PeltHashLookup = {}
+if Config.Pelts then
+    for i = 1, #Config.Pelts do
+        local pelt = Config.Pelts[i]
+        if pelt and pelt.pelthash then
+            Config.PeltHashLookup[pelt.pelthash] = {
+                name = pelt.name or 'Unknown Pelt',
+                rewarditem1 = pelt.rewarditem1,
+                rewarditem2 = pelt.rewarditem2,
+                rewarditem3 = pelt.rewarditem3,
+                rewarditem4 = pelt.rewarditem4,
+                rewarditem5 = pelt.rewarditem5
+            }
+        end
+    end
+end
+
+-- Generate animal model hash lookup table for O(1) access
+Config.AnimalHashLookup = {}
+if Config.Animal then
+    for i = 1, #Config.Animal do
+        local animal = Config.Animal[i]
+        if animal and animal.modelhash ~= nil then
+            Config.AnimalHashLookup[animal.modelhash] = {
+                name = animal.name or 'Unknown Animal',
+                rewarditem1 = animal.rewarditem1,
+                rewarditem2 = animal.rewarditem2,
+                rewarditem3 = animal.rewarditem3,
+                rewarditem4 = animal.rewarditem4,
+                rewarditem5 = animal.rewarditem5
+            }
+        end
+    end
+end

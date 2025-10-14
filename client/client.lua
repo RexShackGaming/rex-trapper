@@ -92,76 +92,87 @@ RegisterNetEvent('rex-trapper:client:selltotrapper', function()
 end)
 
 -----------------------------------------------------------------
--- pelt workings
+-- pelt workings (optimized)
 -----------------------------------------------------------------
+-- Use pre-built lookup table from config for better performance
+
+local lastHoldingCheck = 0
 Citizen.CreateThread(function()
     while true do
-        Wait(1000)
-        local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, cache.ped)
-        local pelthash = Citizen.InvokeNative(0x31FEF6A20F00B963, holding)
-        if holding ~= false then
-            for i = 1, #Config.Pelts do
-                if pelthash == Config.Pelts[i].pelthash then
-                    local name = Config.Pelts[i].name
-                    -- rewards
-                    local rewarditem1 = Config.Pelts[i].rewarditem1
-                    local rewarditem2 = Config.Pelts[i].rewarditem2
-                    local rewarditem3 = Config.Pelts[i].rewarditem3
-                    local rewarditem4 = Config.Pelts[i].rewarditem4
-                    local rewarditem5 = Config.Pelts[i].rewarditem5
-                   
+        Wait(2000) -- Increased from 1000ms to 2000ms
+        local currentTime = GetGameTimer()
+        
+        -- Only check if enough time has passed
+        if currentTime - lastHoldingCheck > 1500 then
+            local holding = Citizen.InvokeNative(0xD806CD2A4F2C2996, cache.ped)
+            if holding and holding ~= 0 then
+                local pelthash = Citizen.InvokeNative(0x31FEF6A20F00B963, holding)
+                local peltData = Config.PeltHashLookup and Config.PeltHashLookup[pelthash] -- O(1) lookup instead of O(n)
+                
+                if peltData then
                     local deleted = DeleteThis(holding)
                     if deleted then
                         lib.notify({ title = locale('cl_lang_11'), description = locale('cl_lang_12'), type = 'inform', duration = 7000 })
-                        TriggerServerEvent('rex-trapper:server:givereward', rewarditem1, rewarditem2, rewarditem3, rewarditem4, rewarditem5)
+                        TriggerServerEvent('rex-trapper:server:givereward', 
+                            peltData.rewarditem1, peltData.rewarditem2, peltData.rewarditem3, 
+                            peltData.rewarditem4, peltData.rewarditem5)
+                        lastHoldingCheck = currentTime -- Reset timer after successful processing
                     else
                         lib.notify({ title = locale('cl_lang_13'), type = 'error', duration = 7000 })
                     end
                 end
             end
+            lastHoldingCheck = currentTime
         end
     end
 end)
 
 -----------------------------------------------------------------
--- loot check
+-- loot check (optimized)
 -----------------------------------------------------------------
+-- Use pre-built lookup table from config for better performance
+
+local lastEventCheck = 0
 Citizen.CreateThread(function()
     while true do
-        Citizen.Wait(2)
-        local size = GetNumberOfEvents(0)
-        if size > 0 then
-            for index = 0, size - 1 do
-                local event = GetEventAtIndex(0, index)
-                if event == 1376140891 then
-                    local view = exports["rex-trapper"]:DataViewNativeGetEventData(0, index, 3)
-                    local pedGathered = view['2']
-                    local ped = view['0']
-                    local model = GetEntityModel(pedGathered)
-                    local model = model
-                    local bool_unk = view['4']
-                    local playergate = cache.ped == ped
-
-                    if model and playergate == true and Config.Debug == true then
-                        print(locale('cl_lang_14') .. model)
-                    end
-
-                    for i = 1, #Config.Animal do 
-                        if model and Config.Animal[i].modelhash ~= nil and playergate and bool_unk == 1 then
-                            local chosenmodel = Config.Animal[i].modelhash
-                            if model == chosenmodel then
-                                local rewarditem1 = Config.Animal[i].rewarditem1
-                                local rewarditem2 = Config.Animal[i].rewarditem2
-                                local rewarditem3 = Config.Animal[i].rewarditem3
-                                local rewarditem4 = Config.Animal[i].rewarditem4
-                                local rewarditem5 = Config.Animal[i].rewarditem5
-                                TriggerServerEvent('rex-trapper:server:givereward', rewarditem1, rewarditem2, rewarditem3, rewarditem4, rewarditem5)
-                                lib.notify({ title = locale('cl_lang_15'), type = 'inform', duration = 7000 })
+        Citizen.Wait(100) -- Increased from 2ms to 100ms - MAJOR performance improvement
+        local currentTime = GetGameTimer()
+        
+        -- Rate limiting: only check events every 50ms
+        if currentTime - lastEventCheck > 50 then
+            local size = GetNumberOfEvents(0)
+            if size > 0 then
+                for index = 0, size - 1 do
+                    local event = GetEventAtIndex(0, index)
+                    if event == 1376140891 then
+                        local view = exports["rex-trapper"]:DataViewNativeGetEventData(0, index, 3)
+                        if view then
+                            local pedGathered = view['2']
+                            local ped = view['0']
+                            local bool_unk = view['4']
+                            local playergate = cache.ped == ped
+                            
+                            if pedGathered and ped and playergate and bool_unk == 1 then
+                                local model = GetEntityModel(pedGathered)
+                                if model then
+                                    if Config.Debug then
+                                        print(locale('cl_lang_14') .. model)
+                                    end
+                                    
+                                    local animalData = Config.AnimalHashLookup and Config.AnimalHashLookup[model]
+                                    if animalData then
+                                        TriggerServerEvent('rex-trapper:server:givereward', 
+                                            animalData.rewarditem1, animalData.rewarditem2, animalData.rewarditem3, 
+                                            animalData.rewarditem4, animalData.rewarditem5)
+                                        lib.notify({ title = locale('cl_lang_15'), type = 'inform', duration = 7000 })
+                                    end
+                                end
                             end
                         end
                     end
                 end
             end
+            lastEventCheck = currentTime
         end
     end
 end)

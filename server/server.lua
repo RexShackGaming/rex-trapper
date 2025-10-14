@@ -3,7 +3,7 @@ local haspelts = false
 lib.locale()
 
 ------------------------------------------
--- give reward
+-- give reward (optimized)
 ------------------------------------------
 RegisterNetEvent('rex-trapper:server:givereward')
 AddEventHandler('rex-trapper:server:givereward', function(rewarditem1, rewarditem2, rewarditem3, rewarditem4, rewarditem5)
@@ -11,91 +11,74 @@ AddEventHandler('rex-trapper:server:givereward', function(rewarditem1, rewardite
     local Player = RSGCore.Functions.GetPlayer(src)
     if not Player then return end
 
-    if rewarditem1 ~= nil then
-        Player.Functions.AddItem(rewarditem1, 1)
-        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewarditem1], 'add', 1)
+    -- Optimized reward giving with array iteration
+    local rewards = {rewarditem1, rewarditem2, rewarditem3, rewarditem4, rewarditem5}
+    
+    for i = 1, #rewards do
+        local item = rewards[i]
+        if item ~= nil and item ~= '' and type(item) == 'string' then
+            if RSGCore.Shared.Items[item] then
+                Player.Functions.AddItem(item, 1)
+                TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[item], 'add', 1)
+            end
+        end
     end
-
-    if rewarditem2 ~= nil then
-        Player.Functions.AddItem(rewarditem2, 1)
-        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewarditem2], 'add', 1)
-    end
-
-    if rewarditem3 ~= nil then
-        Player.Functions.AddItem(rewarditem3, 1)
-        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewarditem3], 'add', 1)
-    end
-
-    if rewarditem4 ~= nil then
-        Player.Functions.AddItem(rewarditem4, 1)
-        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewarditem4], 'add', 1)
-    end
-
-    if rewarditem5 ~= nil then
-        Player.Functions.AddItem(rewarditem5, 1)
-        TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[rewarditem5], 'add', 1)
-    end
-
 end)
 
 ------------------------------------------
--- sell to trapper
+-- sell to trapper (optimized)
 ------------------------------------------
+-- Sellable items lookup table for better performance
+local SellableItems = {
+    ['poor_pelt'] = Config.PoorPeltPrice,
+    ['good_pelt'] = Config.GoodPeltPrice,
+    ['perfect_pelt'] = Config.PerfectPeltPrice,
+    ['legendary_pelt'] = Config.LegendaryPeltPrice,
+    ['small_pelt'] = Config.SmallPeltPrice,
+    ['reptile_skin'] = Config.ReptileSkinPrice,
+    ['feather'] = Config.FeatherPrice
+}
+
 RegisterServerEvent('rex-trapper:server:sellitems')
 AddEventHandler('rex-trapper:server:sellitems', function()
     local src = source
     local Player = RSGCore.Functions.GetPlayer(src)
     if not Player then return end
-    local price = 0
-    local haspelts = false
+    
+    local totalPrice = 0
+    local hasSellableItems = false
+    local itemsToRemove = {}
+    
+    -- First pass: calculate total value and collect items to remove
     if Player.PlayerData.items ~= nil and next(Player.PlayerData.items) ~= nil then 
-        for k, v in pairs(Player.PlayerData.items) do
-            if Player.PlayerData.items[k] ~= nil then
-                if Player.PlayerData.items[k].name == 'poor_pelt' then 
-                    price = price + (Config.PoorPeltPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('poor_pelt', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['poor_pelt'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'good_pelt' then 
-                    price = price + (Config.GoodPeltPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('good_pelt', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['good_pelt'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'perfect_pelt' then 
-                    price = price + (Config.PerfectPeltPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('perfect_pelt', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['perfect_pelt'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'legendary_pelt' then 
-                    price = price + (Config.LegendaryPeltPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('legendary_pelt', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['legendary_pelt'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'small_pelt' then 
-                    price = price + (Config.SmallPeltPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('small_pelt', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['small_pelt'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'reptile_skin' then 
-                    price = price + (Config.ReptileSkinPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('reptile_skin', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['reptile_skin'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
-                elseif Player.PlayerData.items[k].name == 'feather' then 
-                    price = price + (Config.FeatherPrice * Player.PlayerData.items[k].amount)
-                    Player.Functions.RemoveItem('feather', Player.PlayerData.items[k].amount, k)
-                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items['feather'], 'remove', Player.PlayerData.items[k].amount)
-                    haspelts = true
+        for k, item in pairs(Player.PlayerData.items) do
+            if item ~= nil and item.name and item.amount and item.amount > 0 then
+                local itemPrice = SellableItems[item.name]
+                if itemPrice and itemPrice > 0 then
+                    totalPrice = totalPrice + (itemPrice * item.amount)
+                    table.insert(itemsToRemove, {slot = k, name = item.name, amount = item.amount})
+                    hasSellableItems = true
                 end
             end
         end
-        if haspelts == true then
-            Player.Functions.AddMoney(Config.PaymentType, price)
-            TriggerEvent('rsg-log:server:CreateLog', Config.WebhookName, Config.WebhookTitle, Config.WebhookColour, GetPlayerName(src) .. Config.Lang1 .. price, false)
-            haspelts = false
+        
+        -- Second pass: remove items and give payment
+        if hasSellableItems and totalPrice > 0 then
+            for _, itemData in pairs(itemsToRemove) do
+                if RSGCore.Shared.Items[itemData.name] then
+                    Player.Functions.RemoveItem(itemData.name, itemData.amount, itemData.slot)
+                    TriggerClientEvent('rsg-inventory:client:ItemBox', src, RSGCore.Shared.Items[itemData.name], 'remove', itemData.amount)
+                end
+            end
+            
+            Player.Functions.AddMoney(Config.PaymentType, totalPrice)
+            TriggerEvent('rsg-log:server:CreateLog', Config.WebhookName, Config.WebhookTitle, Config.WebhookColour, 
+                GetPlayerName(src) .. Config.Lang1 .. totalPrice, false)
         else
             TriggerClientEvent('ox_lib:notify', src, {title = locale('sv_lang_1'), type = 'error', duration = 7000 })
         end
+    else
+        TriggerClientEvent('ox_lib:notify', src, {title = locale('sv_lang_1'), type = 'error', duration = 7000 })
     end
 end)
 
